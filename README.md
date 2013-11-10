@@ -2,7 +2,7 @@
 
 An EventSource client based off Celluloid::IO.
 
-Specification based on EventSourcehttp://www.w3.org/TR/2012/CR-eventsource-20121211/
+Specification based on [EventSource](http://www.w3.org/TR/2012/CR-eventsource-20121211/)
 
 ## Installation
 
@@ -18,7 +18,9 @@ Or install it yourself as:
 
     $ gem install celluloid-eventsource
 
-and `require 'celluloid/eventsource'`.
+then somewhere in your project:
+
+    require 'celluloid/eventsource'
 
 ## Usage
 
@@ -55,3 +57,4 @@ end
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
 5. Create new Pull Request
+
