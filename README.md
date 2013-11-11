@@ -1,5 +1,7 @@
 # Celluloid::Eventsource
 
+[![Gem Version](https://badge.fury.io/rb/celluloid-eventsource.png)](http://badge.fury.io/rb/celluloid-eventsource)
+
 #### Under Development!! Use at your own risk :)
 
 An EventSource client based off Celluloid::IO.
