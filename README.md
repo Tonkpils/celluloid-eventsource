@@ -1,6 +1,7 @@
 # Celluloid::Eventsource
 
 [![Gem Version](https://badge.fury.io/rb/celluloid-eventsource.png)](http://badge.fury.io/rb/celluloid-eventsource)
+[![Code Climate](https://codeclimate.com/github/Tonkpils/celluloid-eventsource.png)](https://codeclimate.com/github/Tonkpils/celluloid-eventsource)
 
 #### Under Development!! Use at your own risk :)
 
