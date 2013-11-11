@@ -40,17 +40,17 @@ These can be assigned at initialize time
 
 ```ruby
 es = Celluloid::EventSource.new("http://example.com/") do |conn|
+  conn.on_open do 
+    puts "Connection was made"
+  end
+  
   conn.on_message do |message|
     puts "Message: #{message}"
   end
-end
-```
-
-or on the object itself.
-
-```ruby
-es.on_message do |message|
-  puts "Message: #{message}"
+  
+  conn.on_error do |message|
+    puts "Error message #{message}"
+  end
 end
 ```
 
