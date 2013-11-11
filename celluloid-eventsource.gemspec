@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["lcorr005@gmail.com"]
   spec.description   = %q{Celluloid::IO based library to consume Server-Sent Events.}
   spec.summary       = %q{celluloid-eventsource is a gem to consume SSE streaming API.}
-  spec.homepage      = ""
+  spec.homepage      = "https://github.com/Tonkpils/celluloid-eventsource"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files`.split($/)
