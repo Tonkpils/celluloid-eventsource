@@ -42,7 +42,7 @@ eos
   end
 
   it 'waits until the entire request is found' do
-    streamed(headers) do |line|
+    streamed(success_headers) do |line|
       parser << line
     end
 
@@ -50,5 +50,4 @@ eos
     expect(parser.headers?).to be_false
     expect(parser.headers).to be_nil
   end
-
 end
