@@ -7,15 +7,15 @@ module Celluloid
     include  Celluloid::IO
 
     attr_reader :url, :with_credentials
+    attr_reader :ready_state
 
     CONNECTING = 0
     OPEN = 1
     CLOSED = 2
-    attr_reader :ready_state
 
-    def initialize(url, options = {})
-      options = options.dup
-      @url = URI.parse(url)
+    def initialize(uri, options = {})
+      options  = options.dup
+      self.url = uri
       @ready_state = CONNECTING
       @with_credentials = options.delete(:with_credentials) { false }
 
@@ -33,12 +33,20 @@ module Celluloid
       async.listen
     end
 
+    def url=(uri)
+      @url = URI(uri)
+    end
+
     def connected?
       ready_state == OPEN
     end
 
     def closed?
       ready_state == CLOSED
+    end
+
+    def listen!
+      async.listen
     end
 
     def listen
