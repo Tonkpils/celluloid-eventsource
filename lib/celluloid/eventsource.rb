@@ -11,7 +11,6 @@ module Celluloid
     CONNECTING = 0
     OPEN = 1
     CLOSED = 2
-
     attr_reader :ready_state
 
     def initialize(url, options = {})
@@ -27,28 +26,37 @@ module Celluloid
       @on_error = ->(message) {}
       @on_message = ->(message) {}
 
-      @socket = Celluloid::IO::TCPSocket.new(@url.host, @url.port)
       @parser = ResponseParser.new
 
       yield self if block_given?
 
-      async.run
+      async.listen
     end
 
     def connected?
-      @ready_state == OPEN
+      ready_state == OPEN
     end
 
-    def run
+    def closed?
+      ready_state == CLOSED
+    end
+
+    def listen
       establish_connection
 
-      @socket.each do |data|
-        @parser << data
-        handle_stream(@parser.chunk)
+      until closed? || @socket.eof?
+        @parser << @socket.readline
+
+        process_stream(@parser.chunk)
       end
+    rescue IOError
+      # Closing the socket during read causes this exception and kills the actor
+      # We really don't wan to do anything if the socket is closed.
     end
 
     def establish_connection
+      @socket = Celluloid::IO::TCPSocket.new(@url.host, @url.port)
+
       @socket.write(request_string)
 
       until @parser.headers?
@@ -64,8 +72,8 @@ module Celluloid
     end
 
     def close
+      @socket.close if @socket
       @ready_state = CLOSED
-      @socket.close
     end
 
     def on_open(&block)
@@ -82,7 +90,7 @@ module Celluloid
 
     private
 
-    def handle_stream(stream)
+    def process_stream(stream)
       data = ""
 
       stream.split("\n").each do |part|
