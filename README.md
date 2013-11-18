@@ -67,7 +67,9 @@ Celluloid sends messages to actors through thread-safe proxies.
 
 To get around this, use `wrapped_object` to set the handler on the actor but be aware of the concequences.
 
-`es.wrapped_object.on_messsage { |message| puts "Different #{message}" }`
+```ruby
+es.wrapped_object.on_messsage { |message| puts "Different #{message}" }
+```
 
 This same concept applies for changing the `url` of the eventsource.
 
