@@ -55,6 +55,28 @@ es = Celluloid::EventSource.new("http://example.com/") do |conn|
 end
 ```
 
+To close the connection `#close` will shut the socket connection but keep the actor alive. 
+
+### Event Handlers
+
+Event handlers should be added when initializing the eventsource.
+
+**Warning**
+To change event handlers after initializing there is a [Gotcha](https://github.com/celluloid/celluloid/wiki/Gotchas).
+Celluloid sends messages to actors through thread-safe proxies.
+
+To get around this, use `wrapped_object` to set the handler on the actor but be aware of the concequences.
+
+`es.wrapped_object.on_messsage { |message| puts "Different #{message}" }`
+
+This same concept applies for changing the `url` of the eventsource.
+
+### Restarting
+
+To restart the eventsource, simply call `#listen!`. This will restart the connection asynchronously. 
+
+**Note** `#listen` will allow you to connect synchronously. 
+
 ## Contributing
 
 1. Fork it
