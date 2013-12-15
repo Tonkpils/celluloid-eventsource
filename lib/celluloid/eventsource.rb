@@ -1,6 +1,7 @@
 require "celluloid/eventsource/version"
 require 'celluloid/io'
 require 'celluloid/eventsource/response_parser'
+require 'uri'
 
 module Celluloid
   class EventSource
@@ -21,11 +22,7 @@ module Celluloid
 
       @reconnect_timeout = 10
       @last_event_id = String.new
-
-      @on_open = ->() {}
-      @on_error = ->(message) {}
-      @on_message = ->(message) {}
-
+      @on = { open: ->{}, message: ->(_) {}, error: ->(_) {} }
       @parser = ResponseParser.new
 
       yield self if block_given?
@@ -73,7 +70,7 @@ module Celluloid
 
       if @parser.status_code != 200
         close
-        @on_error.call("Unable to establish connection. Response status #{@parser.status_code}")
+        @on[:error].call("Unable to establish connection. Response status #{@parser.status_code}")
       end
 
       handle_headers(@parser.headers)
@@ -84,22 +81,27 @@ module Celluloid
       @ready_state = CLOSED
     end
 
-    def on_open(&block)
-      @on_open = block
+    def on(event_name, &action)
+      @on[event_name.to_sym] = action
     end
 
-    def on_message(&block)
-      @on_message = block
+    def on_open(&action)
+      @on[:open] = action
     end
 
-    def on_error(&block)
-      @on_error = block
+    def on_message(&action)
+      @on[:message] = action
+    end
+
+    def on_error(&action)
+      @on[:error] = action
     end
 
     private
 
     def process_stream(stream)
       data = ""
+      event_name = :message
 
       stream.split("\n").each do |part|
         case part
@@ -110,23 +112,23 @@ module Celluloid
           when /^retry:(.+)$/
             @reconnect_timeout = $1.to_i
           when /^event:(.+)$/
-            # TODO
+            event_name = $1.strip.to_sym
         end
       end
 
       return if data.empty?
       data.chomp!("\n")
 
-      @on_message.call(data)
+      @on[event_name] && @on[event_name].call(data)
     end
 
     def handle_headers(headers)
       if headers['Content-Type'].include?("text/event-stream")
         @ready_state = OPEN
-        @on_open.call
+        @on[:open].call
       else
         close
-        @on_error.call("Invalid Content-Type #{headers['Content-Type']}. Expected text/event-stream")
+        @on[:error].call("Invalid Content-Type #{headers['Content-Type']}. Expected text/event-stream")
       end
     end
 
