@@ -27,7 +27,9 @@ module Celluloid
 
       yield self if block_given?
 
-      async.listen
+      async.wait_for_new_events
+
+      listen!
     end
 
     def url=(uri)
@@ -98,6 +100,15 @@ module Celluloid
     end
 
     private
+
+    def wait_for_new_events
+      loop do
+        message = receive { |msg| msg.is_a?(Hash) }
+        message.each do |event_name, action|
+          on(event_name, &action) if action.respond_to? :call
+        end
+      end
+    end
 
     def process_stream(stream)
       data = ""
