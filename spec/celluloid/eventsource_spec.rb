@@ -6,7 +6,7 @@ describe Celluloid::EventSource do
     ces = double(Celluloid::EventSource)
     Celluloid::IO::TCPSocket.stub(:new).with("example.com", 80)
     Celluloid::EventSource.any_instance.should_receive(:async).and_return(ces)
-    ces.should_receive(:run)
+    ces.should_receive(:listen)
 
     Celluloid::EventSource.new("http://example.com")
   end
