@@ -26,7 +26,7 @@ module Celluloid
       end
 
       def on_headers_complete(headers)
-        @headers = headers
+        @headers = canonical_headers(headers)
       end
 
       def on_body(chunk)
@@ -42,6 +42,18 @@ module Celluloid
         chunk.to_s
       end
 
+      private
+
+      def canonical_headers(headers)
+        headers.each_with_object({}) do |(key, value), canonicalized_headers|
+          name = canonicalize_header(key)
+          canonicalized_headers[name] = value
+        end
+      end
+
+      def canonicalize_header(name)
+        name.gsub('_', '-').split("-").map(&:capitalize).join("-")
+      end
     end
 
   end
