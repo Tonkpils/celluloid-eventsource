@@ -19,7 +19,7 @@ module Celluloid
       self.url = uri
       @ready_state = CONNECTING
       @with_credentials = options.delete(:with_credentials) { false }
-      @headers = default_request.headers.merge(options.fetch(:headers, {}))
+      @headers = default_request_headers.merge(options.fetch(:headers, {}))
 
       @reconnect_timeout = 10
       @last_event_id = String.new
