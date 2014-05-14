@@ -19,6 +19,7 @@ module Celluloid
       self.url = uri
       @ready_state = CONNECTING
       @with_credentials = options.delete(:with_credentials) { false }
+      @headers = default_request.headers.merge(options.fetch(:headers, {}))
 
       @reconnect_timeout = 10
       @last_event_id = String.new
@@ -99,6 +100,14 @@ module Celluloid
 
     private
 
+    def default_request_headers
+      {
+        'Accept'        => 'text/event-stream',
+        'Cache-Control' => 'no-cache',
+        'Host'          => url.host
+      }
+    end
+
     def process_stream(stream)
       data = ""
       event_name = :message
@@ -133,7 +142,9 @@ module Celluloid
     end
 
     def request_string
-      "GET #{url.request_uri} HTTP/1.1\r\nHost: #{url.host}\r\nAccept: text/event-stream\r\nCache-Control: no-cache\r\n\r\n"
+      headers = @headers.map { |k, v| "#{k}: #{v}" }
+
+      ["GET #{url.request_uri} HTTP/1.1", headers].flatten.join("\r\n").concat("\r\n\r\n")
     end
 
   end
