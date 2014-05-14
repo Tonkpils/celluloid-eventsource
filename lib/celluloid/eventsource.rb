@@ -63,6 +63,11 @@ module Celluloid
     def establish_connection
       @socket = Celluloid::IO::TCPSocket.new(@url.host, @url.port)
 
+      if @url.port == 443
+        @socket = Celluloid::IO::SSLSocket.new(@socket)
+        @socket.connect
+      end
+
       @socket.write(request_string)
 
       until @parser.headers?
