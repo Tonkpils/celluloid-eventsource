@@ -5,7 +5,7 @@ require 'uri'
 
 module Celluloid
   class EventSource
-    include  Celluloid::IO
+    include Celluloid::IO
 
     attr_reader :url, :with_credentials
     attr_reader :ready_state
@@ -28,7 +28,7 @@ module Celluloid
 
       yield self if block_given?
 
-      async.listen
+      listen!
     end
 
     def url=(uri)
@@ -51,9 +51,10 @@ module Celluloid
       establish_connection
 
       until closed? || @socket.eof?
-        @parser << @socket.readline
+        line = @socket.readline
+        @parser << line
 
-        process_stream(@parser.chunk)
+        process_stream(@parser.chunk) if line.strip.empty?
       end
     rescue IOError
       # Closing the socket during read causes this exception and kills the actor
