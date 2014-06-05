@@ -123,7 +123,7 @@ module Celluloid
           when /^data:(.+)$/
             data = $1
           when /^id:(.+)$/
-            @last_event_id = $1
+            @last_event_id = $1.strip
           when /^retry:(.+)$/
             @reconnect_timeout = $1.to_i
           when /^event:(.+)$/
