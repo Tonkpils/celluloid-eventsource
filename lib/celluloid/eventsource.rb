@@ -15,8 +15,8 @@ module Celluloid
     CLOSED = 2
 
     def initialize(uri, options = {})
-      options  = options.dup
       self.url = uri
+      options  = options.dup
       @ready_state = CONNECTING
       @with_credentials = options.delete(:with_credentials) { false }
       @headers = default_request_headers.merge(options.fetch(:headers, {}))
@@ -121,7 +121,7 @@ module Celluloid
       stream.split("\n").each do |part|
         case part
           when /^data:(.+)$/
-            data = $1
+            data << $1.lstrip
           when /^id:(.+)$/
             @last_event_id = $1.strip
           when /^retry:(.+)$/

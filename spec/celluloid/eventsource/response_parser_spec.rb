@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe Celluloid::EventSource::ResponseParser do
+RSpec.describe Celluloid::EventSource::ResponseParser do
 
   let(:success_headers) {<<-eos
 HTTP/1.1 200 OK
@@ -38,7 +38,7 @@ eos
     end
 
     expect(parser.status).to eq(200)
-    expect(parser.headers?).to be_true
+    expect(parser.headers?).to be_truthy
     expect(parser.headers['Content-Type']).to eq('text/html; charset=UTF-8')
     expect(parser.headers['Content-Length']).to eq("131")
   end
@@ -49,7 +49,7 @@ eos
     end
 
     expect(parser.status).to eq(200)
-    expect(parser.headers?).to be_false
+    expect(parser.headers?).to be_falsey
     expect(parser.headers).to be_nil
   end
 

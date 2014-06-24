@@ -1,19 +1,25 @@
 require 'spec_helper'
 
-describe Celluloid::EventSource do
-  let(:ces) {double(Celluloid::EventSource)}
+TIMEOUT = 0.001
 
-  before :each do
-    Celluloid::IO::TCPSocket.stub(:new).with('example.com', 80)
+RSpec.describe Celluloid::EventSource do
+  let(:data) { "foo bar " }
+
+  def with_sse_server
+    server = ServerSentEvents.new
+    yield server
   end
 
   describe '#initialize' do
+    let(:ces) { double(Celluloid::EventSource) }
+
     before :each do
-      Celluloid::EventSource.any_instance.should_receive(:async).and_return(ces)
-      ces.should_receive(:listen)
+      allow(Celluloid::IO::TCPSocket).to receive(:new).with('example.com', 80)
+      expect_any_instance_of(Celluloid::EventSource).to receive(:async).and_return(ces)
+      expect(ces).to receive(:listen)
     end
 
-    it 'runs asynchronously on initialize' do
+    it 'runs asynchronously' do
       Celluloid::EventSource.new("http://example.com")
     end
 
@@ -24,4 +30,69 @@ describe Celluloid::EventSource do
       expect(headers['Authorization']).to_not be_nil
     end
   end
+
+  it "keeps track of last event id" do
+    skip "Too tired to finish."
+  end
+
+  it "ignores comment ':' lines" do
+    with_sse_server do |server|
+      event_received = false
+
+      ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
+        conn.on_message { |msg| event_received = true }
+      end
+
+      sleep TIMEOUT until ces.connected?
+
+      server.send_ping
+
+      sleep TIMEOUT
+
+      expect(event_received).to be_falsy
+    end
+  end
+
+  it 'receives data through message event' do
+    with_sse_server do |server|
+      event_received = false
+      payload = nil
+
+      ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
+        conn.on_message { |msg| payload = msg; event_received = true }
+      end
+
+      sleep TIMEOUT until ces.connected?
+
+      server.broadcast(nil, data)
+
+      sleep TIMEOUT
+
+      expect(event_received).to be_truthy
+      expect(payload).to eq(data)
+    end
+  end
+
+
+  it 'receives custom events through event handlers' do
+    with_sse_server do |server|
+      event_received = false
+      event_name     = :custom_event
+      payload        = nil
+
+      ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
+        conn.on(event_name) { |msg| payload = msg; event_received = true }
+      end
+
+      sleep TIMEOUT until ces.connected?
+
+      server.broadcast(event_name, data)
+
+      sleep TIMEOUT
+
+      expect(event_received).to be_truthy
+      expect(payload).to eq(data)
+    end
+  end
+
 end
