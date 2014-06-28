@@ -11,87 +11,94 @@ RSpec.describe Celluloid::EventSource do
   end
 
   describe '#initialize' do
-    let(:ces) { double(Celluloid::EventSource) }
+    let(:ces)  { double(Celluloid::EventSource) }
+    let(:url)  { "example.com" }
 
-    before :each do
-      allow(Celluloid::IO::TCPSocket).to receive(:new).with('example.com', 80)
-      expect_any_instance_of(Celluloid::EventSource).to receive(:async).and_return(ces)
-      expect(ces).to receive(:listen)
+    it "runs on an ssl socket for https" do
+      expect(Celluloid::IO::TCPSocket).to receive(:new).and_return(ces)
+      expect(Celluloid::IO::SSLSocket).to receive(:new).with(ces)
+
+      Celluloid::EventSource.new("https://#{url}")
     end
 
+
     it 'runs asynchronously' do
-      Celluloid::EventSource.new("http://example.com")
+      expect_any_instance_of(Celluloid::EventSource).to receive(:async).and_return(ces)
+      expect(ces).to receive(:listen)
+
+      Celluloid::EventSource.new("http://#{url}")
     end
 
     it 'allows customizing headers' do
-      es = Celluloid::EventSource.new('http://example.com', :headers => {'Authorization' => 'Basic aGVsbG86dzBybGQh'})
+      auth_header = { "Authorization" => "Basic aGVsbG86dzBybGQh" }
+
+      es = Celluloid::EventSource.new("http://#{url}", :headers => auth_header)
 
       headers = es.instance_variable_get('@headers')
-      expect(headers['Authorization']).to_not be_nil
+      expect(headers['Authorization']).to eq(auth_header["Authorization"])
     end
   end
 
   it "keeps track of last event id" do
-    skip "Too tired to finish."
-  end
-
-  it "ignores comment ':' lines" do
     with_sse_server do |server|
-      event_received = false
-
       ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
-        conn.on_message { |msg| event_received = true }
+        conn.on_message { |message| message }
       end
 
       sleep TIMEOUT until ces.connected?
 
-      server.send_ping
+      expect { server.broadcast(nil, data) }.to change { ces.last_event_id }.to("1")
+    end
+  end
 
-      sleep TIMEOUT
+  it "ignores comment ':' lines" do
+    with_sse_server do |server|
+      expect { |event|
+        ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
+          conn.on_message(&event)
+        end
 
-      expect(event_received).to be_falsy
+        sleep TIMEOUT until ces.connected?
+
+        server.send_ping
+
+        sleep TIMEOUT
+      }.to_not yield_control
     end
   end
 
   it 'receives data through message event' do
     with_sse_server do |server|
-      event_received = false
-      payload = nil
+      expect { |event|
+        ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
+          conn.on_message(&event)
+        end
 
-      ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
-        conn.on_message { |msg| payload = msg; event_received = true }
-      end
+        sleep TIMEOUT until ces.connected?
 
-      sleep TIMEOUT until ces.connected?
+        server.broadcast(nil, data)
 
-      server.broadcast(nil, data)
-
-      sleep TIMEOUT
-
-      expect(event_received).to be_truthy
-      expect(payload).to eq(data)
+        sleep TIMEOUT
+      }.to yield_with_args(data)
     end
   end
 
 
   it 'receives custom events through event handlers' do
     with_sse_server do |server|
-      event_received = false
       event_name     = :custom_event
-      payload        = nil
 
-      ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
-        conn.on(event_name) { |msg| payload = msg; event_received = true }
-      end
+      expect { |event|
+        ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
+          conn.on(event_name, &event)
+        end
 
-      sleep TIMEOUT until ces.connected?
+        sleep TIMEOUT until ces.connected?
 
-      server.broadcast(event_name, data)
+        server.broadcast(event_name, data)
 
-      sleep TIMEOUT
-
-      expect(event_received).to be_truthy
-      expect(payload).to eq(data)
+        sleep TIMEOUT
+      }.to yield_with_args(data)
     end
   end
 

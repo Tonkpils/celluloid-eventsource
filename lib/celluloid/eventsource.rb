@@ -8,7 +8,7 @@ module Celluloid
     include Celluloid::IO
 
     attr_reader :url, :with_credentials
-    attr_reader :ready_state
+    attr_reader :ready_state, :last_event_id
 
     CONNECTING = 0
     OPEN = 1
@@ -61,28 +61,6 @@ module Celluloid
       # We really don't wan to do anything if the socket is closed.
     end
 
-    def establish_connection
-      @socket = Celluloid::IO::TCPSocket.new(@url.host, @url.port)
-
-      if @url.port == 443
-        @socket = Celluloid::IO::SSLSocket.new(@socket)
-        @socket.connect
-      end
-
-      @socket.write(request_string)
-
-      until @parser.headers?
-        @parser << @socket.readline
-      end
-
-      if @parser.status_code != 200
-        close
-        @on[:error].call("Unable to establish connection. Response status #{@parser.status_code}")
-      end
-
-      handle_headers(@parser.headers)
-    end
-
     def close
       @socket.close if @socket
       @ready_state = CLOSED
@@ -105,6 +83,32 @@ module Celluloid
     end
 
     private
+
+    def ssl?
+      url.scheme == 'https'
+    end
+
+    def establish_connection
+      @socket = Celluloid::IO::TCPSocket.new(@url.host, @url.port)
+
+      if ssl?
+        @socket = Celluloid::IO::SSLSocket.new(@socket)
+        @socket.connect
+      end
+
+      @socket.write(request_string)
+
+      until @parser.headers?
+        @parser << @socket.readline
+      end
+
+      if @parser.status_code != 200
+        close
+        @on[:error].call("Unable to establish connection. Response status #{@parser.status_code}")
+      end
+
+      handle_headers(@parser.headers)
+    end
 
     def default_request_headers
       {
