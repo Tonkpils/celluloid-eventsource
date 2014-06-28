@@ -2,6 +2,7 @@
 
 [![Gem Version](https://badge.fury.io/rb/celluloid-eventsource.png)](http://badge.fury.io/rb/celluloid-eventsource)
 [![Code Climate](https://codeclimate.com/github/Tonkpils/celluloid-eventsource.png)](https://codeclimate.com/github/Tonkpils/celluloid-eventsource)
+[![Build Status](https://travis-ci.org/Tonkpils/celluloid-eventsource.svg?branch=master)](https://travis-ci.org/Tonkpils/celluloid-eventsource)
 
 #### Under Development!! Use at your own risk :)
 
@@ -41,21 +42,21 @@ These can be assigned at initialize time
 
 ```ruby
 es = Celluloid::EventSource.new("http://example.com/") do |conn|
-  conn.on_open do 
+  conn.on_open do
     puts "Connection was made"
   end
-  
+
   conn.on_message do |message|
     puts "Message: #{message}"
   end
-  
+
   conn.on_error do |message|
     puts "Error message #{message}"
   end
 end
 ```
 
-To close the connection `#close` will shut the socket connection but keep the actor alive. 
+To close the connection `#close` will shut the socket connection but keep the actor alive.
 
 ### Event Handlers
 
@@ -75,9 +76,9 @@ This same concept applies for changing the `url` of the eventsource.
 
 ### Restarting
 
-To restart the eventsource, simply call `#listen!`. This will restart the connection asynchronously. 
+To restart the eventsource, simply call `#listen!`. This will restart the connection asynchronously.
 
-**Note** `#listen` will allow you to connect synchronously. 
+**Note** `#listen` will allow you to connect synchronously.
 
 ## Contributing
 
