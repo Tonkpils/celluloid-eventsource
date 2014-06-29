@@ -8,7 +8,7 @@ module Celluloid
     include Celluloid::IO
 
     attr_reader :url, :with_credentials
-    attr_reader :ready_state, :last_event_id
+    attr_reader :ready_state
 
     CONNECTING = 0
     OPEN = 1
@@ -23,8 +23,13 @@ module Celluloid
       @with_credentials = options.delete(:with_credentials) { false }
       @headers = default_request_headers.merge(options.fetch(:headers, {}))
 
-      @reconnect_timeout = 10
+      @event_type_buffer = ""
+      @last_event_id_buffer = ""
+      @data_buffer = ""
+
       @last_event_id = String.new
+
+      @reconnect_timeout = 10
       @on = { open: ->{}, message: ->(_) {}, error: ->(_) {} }
       @parser = ResponseParser.new
 
@@ -48,12 +53,7 @@ module Celluloid
     def listen
       establish_connection
 
-      until closed? || @socket.eof?
-        line = @socket.readline
-        @parser << line
-
-        process_stream(@parser.chunk) if line.strip.empty?
-      end
+      process_stream
     rescue IOError
       # Closing the socket during read causes this exception and kills the actor
       # We really don't wan to do anything if the socket is closed.
@@ -116,27 +116,56 @@ module Celluloid
       }
     end
 
-    def process_stream(stream)
-      data = ""
-      event_name = :message
+    def process_field(line)
+      case line
+      when /^data:(.+)$/
+        @data_buffer << $1.lstrip.concat("\n")
+      when /^id:(.+)$/
+        @last_event_id_buffer = $1.lstrip
+      when /^retry:(\d+)$/
+        @reconnect_timeout = $1.to_i
+      when /^event:(.+)$/
+        @event_type_buffer = $1.lstrip
+      end
+    end
 
-      stream.split("\n").each do |part|
-        case part
-          when /^data:(.+)$/
-            data << $1.lstrip
-          when /^id:(.+)$/
-            @last_event_id = $1.strip
-          when /^retry:(.+)$/
-            @reconnect_timeout = $1.to_i
-          when /^event:(.+)$/
-            event_name = $1.strip.to_sym
-        end
+    MessageEvent = Struct.new(:type, :data, :last_event_id)
+
+    def process_event
+      @last_event_id = @last_event_id_buffer
+
+      unless @data_buffer.empty?
+        @data_buffer = @data_buffer.chomp("\n") if @data_buffer.end_with?("\n")
+        event = MessageEvent.new(:message, @data_buffer, @last_event_id)
+        event.type = @event_type_buffer.to_sym unless @event_type_buffer.empty?
+
+        dispatch_event(event)
       end
 
-      return if data.empty?
-      data.chomp!("\n")
+      clear_buffers!
+    end
 
-      @on[event_name] && @on[event_name].call(data)
+    def clear_buffers!
+      @data_buffer = ""
+      @event_type_buffer = ""
+    end
+
+    def dispatch_event(event)
+      unless closed?
+        @on[event.type] && @on[event.type].call(event)
+      end
+    end
+
+    def process_stream
+      until closed? || @socket.eof?
+        line = @socket.readline
+
+        if line.strip.empty?
+          process_event
+        else
+          process_field(line)
+        end
+      end
     end
 
     def handle_headers(headers)

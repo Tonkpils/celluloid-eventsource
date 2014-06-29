@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-TIMEOUT = 0.001
+TIMEOUT = 0.0001
 
 RSpec.describe Celluloid::EventSource do
   let(:data) { "foo bar " }
@@ -35,13 +35,14 @@ RSpec.describe Celluloid::EventSource do
 
   it "keeps track of last event id" do
     with_sse_server do |server|
+      @last_event_id = ""
       ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
-        conn.on_message { |message| message }
+        conn.on_message { |event| @last_event_id = event.last_event_id }
       end
 
       sleep TIMEOUT until ces.connected?
 
-      expect { server.broadcast(nil, data) }.to change { ces.last_event_id }.to("1")
+      expect { server.broadcast(nil, data); sleep TIMEOUT }.to change { @last_event_id }.to("1")
     end
   end
 
@@ -73,14 +74,14 @@ RSpec.describe Celluloid::EventSource do
         server.broadcast(nil, data)
 
         sleep TIMEOUT
-      }.to yield_with_args(data)
+      }.to yield_with_args(Celluloid::EventSource::MessageEvent)
     end
   end
 
 
   it 'receives custom events through event handlers' do
     with_sse_server do |server|
-      event_name     = :custom_event
+      event_name = :custom_event
 
       expect { |event|
         ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
@@ -92,7 +93,7 @@ RSpec.describe Celluloid::EventSource do
         server.broadcast(event_name, data)
 
         sleep TIMEOUT
-      }.to yield_with_args(data)
+      }.to yield_with_args(Celluloid::EventSource::MessageEvent)
     end
   end
 
