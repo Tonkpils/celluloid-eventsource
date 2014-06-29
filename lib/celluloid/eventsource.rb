@@ -14,6 +14,8 @@ module Celluloid
     OPEN = 1
     CLOSED = 2
 
+    execute_block_on_receiver :initialize
+
     def initialize(uri, options = {})
       self.url = uri
       options  = options.dup
@@ -28,7 +30,7 @@ module Celluloid
 
       yield self if block_given?
 
-      listen!
+      async.listen
     end
 
     def url=(uri)
@@ -41,10 +43,6 @@ module Celluloid
 
     def closed?
       ready_state == CLOSED
-    end
-
-    def listen!
-      async.listen
     end
 
     def listen

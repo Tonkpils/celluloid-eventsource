@@ -8,23 +8,16 @@ RSpec.describe Celluloid::EventSource do
   def with_sse_server
     server = ServerSentEvents.new
     yield server
+  ensure
+    server.terminate if server && server.alive?
   end
 
   describe '#initialize' do
-    let(:ces)  { double(Celluloid::EventSource) }
     let(:url)  { "example.com" }
 
-    it "runs on an ssl socket for https" do
-      expect(Celluloid::IO::TCPSocket).to receive(:new).and_return(ces)
-      expect(Celluloid::IO::SSLSocket).to receive(:new).with(ces)
-
-      Celluloid::EventSource.new("https://#{url}")
-    end
-
-
     it 'runs asynchronously' do
-      expect_any_instance_of(Celluloid::EventSource).to receive(:async).and_return(ces)
-      expect(ces).to receive(:listen)
+      ces = double(Celluloid::EventSource)
+      expect_any_instance_of(Celluloid::EventSource).to receive_message_chain(:async, :listen).and_return(ces)
 
       Celluloid::EventSource.new("http://#{url}")
     end
@@ -32,6 +25,7 @@ RSpec.describe Celluloid::EventSource do
     it 'allows customizing headers' do
       auth_header = { "Authorization" => "Basic aGVsbG86dzBybGQh" }
 
+      allow_any_instance_of(Celluloid::EventSource).to receive_message_chain(:async, :listen)
       es = Celluloid::EventSource.new("http://#{url}", :headers => auth_header)
 
       headers = es.instance_variable_get('@headers')

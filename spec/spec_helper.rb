@@ -10,16 +10,9 @@ logfile = File.open(File.expand_path("../../log/test.log", __FILE__), 'a')
 logfile.sync = true
 
 Celluloid.logger = Logger.new(logfile)
-Celluloid.shutdown_timeout = 1
 
 RSpec.configure do |config|
   config.expose_dsl_globally = false
-
-  config.around do |ex|
-    Celluloid.boot
-    ex.run
-    Celluloid.shutdown
-  end
 end
 
 class ServerSentEvents < Reel::Server::HTTP
