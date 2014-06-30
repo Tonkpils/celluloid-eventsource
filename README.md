@@ -46,12 +46,16 @@ es = Celluloid::EventSource.new("http://example.com/") do |conn|
     puts "Connection was made"
   end
 
-  conn.on_message do |message|
-    puts "Message: #{message}"
+  conn.on_message do |event|
+    puts "Message: #{event.data}"
   end
 
   conn.on_error do |message|
     puts "Error message #{message}"
+  end
+
+  conn.on(:time) do |event|
+    puts "The time is #{event.data}"
   end
 end
 ```
@@ -73,12 +77,6 @@ es.wrapped_object.on_messsage { |message| puts "Different #{message}" }
 ```
 
 This same concept applies for changing the `url` of the eventsource.
-
-### Restarting
-
-To restart the eventsource, simply call `#listen!`. This will restart the connection asynchronously.
-
-**Note** `#listen` will allow you to connect synchronously.
 
 ## Contributing
 
