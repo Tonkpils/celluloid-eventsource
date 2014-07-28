@@ -125,7 +125,7 @@ module Celluloid
       when /^retry:(\d+)$/
         @reconnect_timeout = $1.to_i
       when /^event:(.+)$/
-        @event_type_buffer = $1.lstrip
+        @event_type_buffer = $1.lstrip.chomp
       end
     end
 
@@ -169,12 +169,14 @@ module Celluloid
     end
 
     def handle_headers(headers)
-      if headers['Content-Type'].include?("text/event-stream")
+      content_type = headers['Content-Type'] || headers['content-type']
+      
+      if content_type.include?('text/event-stream')
         @ready_state = OPEN
         @on[:open].call
       else
         close
-        @on[:error].call("Invalid Content-Type #{headers['Content-Type']}. Expected text/event-stream")
+        @on[:error].call("Invalid Content-Type #{content_type}. Expected text/event-stream")
       end
     end
 
