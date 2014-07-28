@@ -125,7 +125,7 @@ module Celluloid
       when /^retry:(\d+)$/
         @reconnect_timeout = $1.to_i
       when /^event:(.+)$/
-        @event_type_buffer = $1.lstrip
+        @event_type_buffer = $1.lstrip.chomp
       end
     end
 
