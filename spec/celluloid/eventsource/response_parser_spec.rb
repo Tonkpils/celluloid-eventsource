@@ -9,6 +9,7 @@ Content-Type: text/html; charset=UTF-8
 Content-Length: 131
 X_CASE_HEADER: foo
 X_Mixed-Case: bar
+x-lowcase-header: hello
 eos
 }
 
@@ -56,7 +57,8 @@ eos
   it 'makes response headers canonicalized' do
     streamed(response_string) { |line| parser << line }
     expected_headers = {
-      'X-Mixed-Case' => 'bar', 'Content-Type' => 'text/html; charset=UTF-8', 'Content-Length' => "131", 'X-Case-Header' => 'foo'
+      'X-Mixed-Case' => 'bar', 'Content-Type' => 'text/html; charset=UTF-8', 'Content-Length' => "131",
+      'X-Case-Header' => 'foo', 'X-Lowcase-Header' => "hello"
     }
     expect(parser.headers).to include(expected_headers)
   end
