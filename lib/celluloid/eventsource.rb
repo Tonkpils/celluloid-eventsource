@@ -101,7 +101,9 @@ module Celluloid
       end
 
       if @parser.status_code != 200
-        @parser << @socket.readline
+        until @socket.eof?
+          @parser << @socket.readline
+        end
         close
         @on[:error].call({status_code: @parser.status_code, body: @parser.chunk})
       end
