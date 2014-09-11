@@ -177,7 +177,7 @@ module Celluloid
         @on[:open].call
       else
         close
-        @on[:error].call("Invalid Content-Type #{headers['Content-Type']}. Expected text/event-stream")
+        @on[:error].call({status_code: @parser.status_code, body: "Invalid Content-Type #{headers['Content-Type']}. Expected text/event-stream"})
       end
     end
 
