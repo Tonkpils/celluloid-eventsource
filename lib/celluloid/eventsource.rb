@@ -101,8 +101,11 @@ module Celluloid
       end
 
       if @parser.status_code != 200
+        until @socket.eof?
+          @parser << @socket.readline
+        end
         close
-        @on[:error].call("Unable to establish connection. Response status #{@parser.status_code}")
+        @on[:error].call({status_code: @parser.status_code, body: @parser.chunk})
       end
 
       handle_headers(@parser.headers)

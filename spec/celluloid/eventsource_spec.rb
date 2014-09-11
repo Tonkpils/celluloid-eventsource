@@ -78,6 +78,31 @@ RSpec.describe Celluloid::EventSource do
     end
   end
 
+  it 'receives response body through error event' do
+    with_sse_server do |server|
+      expect { |error|
+        ces = Celluloid::EventSource.new("http://localhost:63310/error") do |conn|
+          conn.on_error(&error)
+        end
+
+        sleep TIMEOUT until ces.closed?
+
+      }.to yield_with_args({status_code: 400, body:"blop"})
+    end
+  end
+
+  it 'receives response without a body through error event' do
+    with_sse_server do |server|
+      expect { |error|
+        ces = Celluloid::EventSource.new("http://localhost:63310/error/no_body") do |conn|
+          conn.on_error(&error)
+        end
+
+        sleep TIMEOUT until ces.closed?
+
+      }.to yield_with_args({status_code: 400, body:""})
+    end
+  end
 
   it 'receives custom events through event handlers' do
     with_sse_server do |server|
