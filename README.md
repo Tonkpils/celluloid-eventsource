@@ -51,7 +51,7 @@ es = Celluloid::EventSource.new("http://example.com/") do |conn|
   end
 
   conn.on_error do |message|
-    puts "Error message #{message}"
+    puts "Response status #{message[:status_code]}, Response body #{message[:body]}"
   end
 
   conn.on(:time) do |event|
