@@ -87,7 +87,11 @@ class ServerSentEvents < Reel::Server::HTTP
 
   def on_connection(connection)
     connection.each_request do |request|
-      handle_request(request)
+      if request.path == '/error'
+        request.respond :bad_request, {'Content-Type' => 'application/json; charset=UTF-8'}, [""]
+      else
+        handle_request(request)
+      end
     end
   end
 end
