@@ -85,7 +85,7 @@ RSpec.describe Celluloid::EventSource do
           conn.on_error(&error)
         end
 
-        sleep 1
+        sleep TIMEOUT until ces.closed?
 
       }.to yield_with_args({status_code: 400, body:"blop"})
     end
@@ -98,7 +98,7 @@ RSpec.describe Celluloid::EventSource do
           conn.on_error(&error)
         end
 
-        sleep 1
+        sleep TIMEOUT until ces.closed?
 
       }.to yield_with_args({status_code: 400, body:""})
     end
