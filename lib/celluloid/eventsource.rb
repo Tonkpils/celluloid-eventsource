@@ -106,6 +106,7 @@ module Celluloid
         end
         close
         @on[:error].call({status_code: @parser.status_code, body: @parser.chunk})
+        return
       end
 
       handle_headers(@parser.headers)
