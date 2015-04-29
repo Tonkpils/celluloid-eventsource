@@ -4,8 +4,6 @@
 [![Code Climate](https://codeclimate.com/github/Tonkpils/celluloid-eventsource.png)](https://codeclimate.com/github/Tonkpils/celluloid-eventsource)
 [![Build Status](https://travis-ci.org/Tonkpils/celluloid-eventsource.svg?branch=master)](https://travis-ci.org/Tonkpils/celluloid-eventsource)
 
-#### Under Development!! Use at your own risk :)
-
 An EventSource client based off Celluloid::IO.
 
 Specification based on [EventSource](http://www.w3.org/TR/2012/CR-eventsource-20121211/)
