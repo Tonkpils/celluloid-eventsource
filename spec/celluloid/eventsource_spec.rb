@@ -1,16 +1,11 @@
 require 'spec_helper'
+require 'support/dummy_server'
 
-TIMEOUT = 0.0001
 
+# See: https://html.spec.whatwg.org/multipage/comms.html#event-stream-interpretation
 RSpec.describe Celluloid::EventSource do
-  let(:data) { "foo bar " }
 
-  def with_sse_server
-    server = ServerSentEvents.new
-    yield server
-  ensure
-    server.terminate if server && server.alive?
-  end
+  run_server(:dummy) { DummyServer.new }
 
   describe '#initialize' do
     let(:url)  { "example.com" }
@@ -33,93 +28,93 @@ RSpec.describe Celluloid::EventSource do
     end
   end
 
-  it "keeps track of last event id" do
-    with_sse_server do |server|
-      @last_event_id = ""
-      ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
-        conn.on_message { |event| @last_event_id = event.last_event_id }
+  context 'callbacks' do
+
+    let(:future) { Celluloid::Future.new }
+    let(:value_class) { Class.new(Struct.new(:value)) }
+
+    describe '#on_open' do
+
+      it 'the client has an opened connection' do
+
+        Celluloid::EventSource.new(dummy.endpoint) do |conn|
+          conn.on_open do
+            future.signal(value_class.new({ called: true, state: conn.ready_state }))
+            conn.close
+          end
+        end
+
+        expect(future.value).to eq({ called: true, state: Celluloid::EventSource::OPEN })
+      end
+    end
+
+    describe '#on_error' do
+
+      it 'receives response body through error event' do
+
+        Celluloid::EventSource.new("#{dummy.endpoint}/error") do |conn|
+          conn.on_error do |error|
+            future.signal(value_class.new({ msg: error, state: conn.ready_state }))
+          end
+        end
+
+        expect(future.value).to eq({ msg: { status_code: 400, body: '{"msg": "blop"}' },
+                                     state: Celluloid::EventSource::CLOSED })
+      end
+    end
+
+    describe '#on_message' do
+
+      it 'receives data through message event' do
+
+        Celluloid::EventSource.new(dummy.endpoint) do |conn|
+          conn.on_message do |message|
+            if '3' == message.last_event_id
+              future.signal(value_class.new({ msg: message, state: conn.ready_state }))
+              conn.close
+            end
+          end
+        end
+
+        payload = future.value
+        expect(payload[:msg]).to be_a(Celluloid::EventSource::MessageEvent)
+        expect(payload[:msg].type).to eq(:message)
+        expect(payload[:msg].last_event_id).to eq('3')
+        expect(payload[:state]).to eq(Celluloid::EventSource::OPEN)
       end
 
-      sleep TIMEOUT until ces.connected?
+      it 'ignores lines starting with ":"' do
 
-      expect { server.broadcast(nil, data); sleep TIMEOUT }.to change { @last_event_id }.to("1")
-    end
-  end
-
-  it "ignores comment ':' lines" do
-    with_sse_server do |server|
-      expect { |event|
-        ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
-          conn.on_message(&event)
+        Celluloid::EventSource.new("#{dummy.endpoint}/ping") do |conn|
+          conn.on_message do |message|
+            future.signal(value_class.new({ msg: message, state: conn.ready_state }))
+            conn.close
+          end
         end
 
-        sleep TIMEOUT until ces.connected?
+        expect(future.value[:msg].data).to eq('pong')
 
-        server.send_ping
-
-        sleep TIMEOUT
-      }.to_not yield_control
+      end
     end
-  end
 
-  it 'receives data through message event' do
-    with_sse_server do |server|
-      expect { |event|
-        ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
-          conn.on_message(&event)
+    describe '#on' do
+      let(:custom) { :custom_event }
+
+      it 'receives custom events and handles them' do
+
+        Celluloid::EventSource.new("#{dummy.endpoint}/#{custom}") do |conn|
+          conn.on(custom) do |message|
+            future.signal(value_class.new({ msg: message, state: conn.ready_state }))
+            conn.close
+          end
         end
 
-        sleep TIMEOUT until ces.connected?
-
-        server.broadcast(nil, data)
-
-        sleep TIMEOUT
-      }.to yield_with_args(Celluloid::EventSource::MessageEvent)
+        payload = future.value
+        expect(payload[:msg]).to be_a(Celluloid::EventSource::MessageEvent)
+        expect(payload[:msg].type).to eq(custom)
+        expect(payload[:msg].last_event_id).to eq('1')
+        expect(payload[:state]).to eq(Celluloid::EventSource::OPEN)
+      end
     end
   end
-
-  it 'receives response body through error event' do
-    with_sse_server do |server|
-      expect { |error|
-        ces = Celluloid::EventSource.new("http://localhost:63310/error") do |conn|
-          conn.on_error(&error)
-        end
-
-        sleep TIMEOUT until ces.closed?
-
-      }.to yield_with_args({status_code: 400, body:"blop"})
-    end
-  end
-
-  it 'receives response without a body through error event' do
-    with_sse_server do |server|
-      expect { |error|
-        ces = Celluloid::EventSource.new("http://localhost:63310/error/no_body") do |conn|
-          conn.on_error(&error)
-        end
-
-        sleep TIMEOUT until ces.closed?
-
-      }.to yield_with_args({status_code: 400, body:""})
-    end
-  end
-
-  it 'receives custom events through event handlers' do
-    with_sse_server do |server|
-      event_name = :custom_event
-
-      expect { |event|
-        ces = Celluloid::EventSource.new("http://localhost:63310") do |conn|
-          conn.on(event_name, &event)
-        end
-
-        sleep TIMEOUT until ces.connected?
-
-        server.broadcast(event_name, data)
-
-        sleep TIMEOUT
-      }.to yield_with_args(Celluloid::EventSource::MessageEvent)
-    end
-  end
-
 end
