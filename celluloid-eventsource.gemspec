@@ -21,8 +21,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'celluloid-io', '>= 0.15.0', '<= 0.16.2'
   spec.add_dependency 'http_parser.rb', '~> 0.6.0'
 
-  spec.add_development_dependency "timers"
-  spec.add_development_dependency "reel", '>= 0.5.0'
+  spec.add_development_dependency 'atomic', '~> 1.1.99'
   spec.add_development_dependency "rspec", '~> 3.0.0'
   spec.add_development_dependency "bundler", ">= 1.7.0"
   spec.add_development_dependency "rake", '~> 10.1.0'
