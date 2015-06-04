@@ -5,6 +5,8 @@ require 'support/dummy_server'
 # See: https://html.spec.whatwg.org/multipage/comms.html#event-stream-interpretation
 RSpec.describe Celluloid::EventSource do
 
+  let!(:chunk_size) { DummyServer::CHUNK_SIZE }
+
   def dummy
     @dummy ||= DummyServer.new
   end
@@ -102,7 +104,52 @@ RSpec.describe Celluloid::EventSource do
           end
         end
 
-        expect(future.value[:msg].data).to eq('pong')
+        expect(future.value(3)[:msg].data).to eq('pong')
+      end
+
+      it "aggregates events properly" do
+        Celluloid::EventSource.new("#{dummy.endpoint}/continuous") do |conn|
+          conn.on_message do |message|
+            future.signal(value_class.new({ msg: message, state: conn.ready_state }))
+            conn.close
+          end
+        end
+        expect(future.value(3)[:msg].data).to eq("YHOO\n+2\n10")
+      end
+
+      context "with chunked streams" do
+        it "properly parses chunked encoding" do
+          Celluloid::EventSource.new("#{dummy.endpoint}/chunk") do |conn|
+            conn.on_message do |message|
+              future.signal(value_class.new({ msg: message, state: conn.ready_state }))
+              conn.close
+            end
+          end
+          expect(future.value(3)[:msg].data).to eq("f" * (chunk_size + 25))
+        end
+
+        it "parses multiple continuous chunks" do
+          Celluloid::EventSource.new("#{dummy.endpoint}/continuous_chunks") do |conn|
+            conn.on_message do |message|
+              future.signal(value_class.new({ msg: message, state: conn.ready_state }))
+              conn.close
+            end
+          end
+
+          data = "o" * chunk_size + "\n" + "m" * chunk_size + "\n" + "g" * chunk_size
+          expect(future.value(3)[:msg].data).to eq(data)
+        end
+
+        it "parses multiple chunks" do
+          Celluloid::EventSource.new("#{dummy.endpoint}/multiple_chunks") do |conn|
+            conn.on_message do |message|
+              future.signal(value_class.new({ msg: message, state: conn.ready_state }))
+              conn.close
+            end
+          end
+
+          expect(future.value(3)[:msg].data).to eq({test: "long_chunk", another_chunk: "a" * chunk_size, chunks: "f" * chunk_size }.to_json)
+        end
       end
     end
 
