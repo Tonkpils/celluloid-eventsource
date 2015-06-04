@@ -5,7 +5,18 @@ require 'support/dummy_server'
 # See: https://html.spec.whatwg.org/multipage/comms.html#event-stream-interpretation
 RSpec.describe Celluloid::EventSource do
 
-  run_server(:dummy) { DummyServer.new }
+  def dummy
+    @dummy ||= DummyServer.new
+  end
+
+  before(:all) do
+    dummy.listen(DummyServer::CONFIG[:BindAddress], DummyServer::CONFIG[:Port])
+    Thread.new { dummy.start }
+  end
+
+  after(:all) do
+    dummy.shutdown
+  end
 
   describe '#initialize' do
     let(:url)  { "example.com" }
@@ -84,7 +95,6 @@ RSpec.describe Celluloid::EventSource do
       end
 
       it 'ignores lines starting with ":"' do
-
         Celluloid::EventSource.new("#{dummy.endpoint}/ping") do |conn|
           conn.on_message do |message|
             future.signal(value_class.new({ msg: message, state: conn.ready_state }))
@@ -93,7 +103,6 @@ RSpec.describe Celluloid::EventSource do
         end
 
         expect(future.value[:msg].data).to eq('pong')
-
       end
     end
 

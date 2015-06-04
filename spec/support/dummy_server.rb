@@ -2,15 +2,14 @@ require 'webrick'
 require 'atomic'
 
 require 'support/black_hole'
-require 'support/runner'
-
 
 class DummyServer < WEBrick::HTTPServer
   CONFIG = {
       :BindAddress  => '127.0.0.1',
-      :Port         => 63310,
+      :Port         => 5000,
       :AccessLog    => BlackHole,
-      :Logger       => BlackHole
+      :Logger       => BlackHole,
+      :DoNotListen  => true,
   }.freeze
 
   def initialize(options = {})
@@ -46,7 +45,7 @@ class DummyServer < WEBrick::HTTPServer
     def do_GET(req, res)
       event = String(Array(req.path.match(/\/?(\w+)/i)).pop).to_sym
       res.content_type = 'text/event-stream; charset=utf-8'
-      res['Cache-control'] = 'no-cache'
+      res['Cache-Control'] = 'no-cache'
       r,w = IO.pipe
       res.body = r
       res.chunked = true
@@ -64,7 +63,7 @@ class DummyServer < WEBrick::HTTPServer
             w << "event: %s\ndata: %s\n\n" % %w(end end)
           end
         rescue => ex
-          puts $!.inspect, $@
+          puts $!.inspect, $@ unless ex.is_a?(Errno::EPIPE)
         ensure
           w.close
         end
