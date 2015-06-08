@@ -1,15 +1,18 @@
 require 'webrick'
 require 'atomic'
+require 'json'
 
 require 'support/black_hole'
 
 class DummyServer < WEBrick::HTTPServer
+  CHUNK_SIZE = 100
   CONFIG = {
       :BindAddress  => '127.0.0.1',
       :Port         => 5000,
       :AccessLog    => BlackHole,
       :Logger       => BlackHole,
       :DoNotListen  => true,
+      :OutputBufferSize => CHUNK_SIZE
   }.freeze
 
   def initialize(options = {})
@@ -51,14 +54,27 @@ class DummyServer < WEBrick::HTTPServer
       res.chunked = true
       t = Thread.new do
         begin
-          if :ping == event
+          w << "retry: 1000\n"
+          case event
+          when :continuous_chunks
+            data = "data: %s\ndata: %s\ndata: %s\n\n" % ["o" * CHUNK_SIZE, "m" * CHUNK_SIZE, "g" * CHUNK_SIZE]
+            w << data
+          when :multiple_chunks
+            data = {test: "long_chunk", another_chunk: "a" * CHUNK_SIZE, chunks: "f" * CHUNK_SIZE}.to_json
+            w << "data: #{data}\n\n"
+          when :continuous
+            w << "data: YHOO\ndata: +2\ndata: 10\n\n"
+          when :chunk
+            data = "f" * (CHUNK_SIZE + 25)
+            w << "data: %s\n\n" % data
+          when :ping
             w << ": ignore this line\n"
             w << "event: \ndata: pong\n\n"  # easy way to know a 'ping' has been sent
           else
             42.times do
               w << "id: %s\nevent: %s\ndata: %s\n\n" % [ @event_id.update { |v| v + 1 },
-                                                        event,
-                                                        Time.now ]
+                                                         event,
+                                                         Time.now ]
             end
             w << "event: %s\ndata: %s\n\n" % %w(end end)
           end

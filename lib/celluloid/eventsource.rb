@@ -33,6 +33,8 @@ module Celluloid
       @on = { open: ->{}, message: ->(_) {}, error: ->(_) {} }
       @parser = ResponseParser.new
 
+      @chunked = false
+
       yield self if block_given?
 
       async.listen
@@ -53,7 +55,7 @@ module Celluloid
     def listen
       establish_connection
 
-      process_stream
+      chunked? ? process_chunked_stream : process_stream
     rescue IOError
       # Closing the socket during read causes this exception and kills the actor
       # We really don't wan to do anything if the socket is closed.
@@ -81,6 +83,8 @@ module Celluloid
     end
 
     private
+
+    MessageEvent = Struct.new(:type, :data, :last_event_id)
 
     def ssl?
       url.scheme == 'https'
@@ -120,35 +124,6 @@ module Celluloid
       }
     end
 
-    def process_field(line)
-      case line
-      when /^data:(.+)$/
-        @data_buffer << $1.lstrip.concat("\n")
-      when /^id:(.+)$/
-        @last_event_id_buffer = $1.lstrip
-      when /^retry:(\d+)$/
-        @reconnect_timeout = $1.to_i
-      when /^event:(.+)$/
-        @event_type_buffer = $1.lstrip
-      end
-    end
-
-    MessageEvent = Struct.new(:type, :data, :last_event_id)
-
-    def process_event
-      @last_event_id = @last_event_id_buffer
-
-      unless @data_buffer.empty?
-        @data_buffer = @data_buffer.chomp("\n") if @data_buffer.end_with?("\n")
-        event = MessageEvent.new(:message, @data_buffer, @last_event_id)
-        event.type = @event_type_buffer.to_sym unless @event_type_buffer.empty?
-
-        dispatch_event(event)
-      end
-
-      clear_buffers!
-    end
-
     def clear_buffers!
       @data_buffer = ""
       @event_type_buffer = ""
@@ -160,20 +135,84 @@ module Celluloid
       end
     end
 
+    def chunked?
+      @chunked
+    end
+
+    def process_chunked_stream
+      until closed? || @socket.eof?
+        handle_chunked_stream
+      end
+    end
+
     def process_stream
       until closed? || @socket.eof?
         line = @socket.readline
+        line.strip.empty? ? process_event : parse_line(line)
+      end
+    end
 
-        if line.strip.empty?
-          process_event
-        else
-          process_field(line)
+    def handle_chunked_stream
+      chunk_header = @socket.readline
+      bytes_to_read = chunk_header.to_i(16)
+      bytes_read = 0
+      while bytes_read < bytes_to_read do
+        line = @socket.readline
+        bytes_read += line.size
+
+        line.strip.empty? ? process_event : parse_line(line)
+      end
+
+      if !line.nil? && line.strip.empty?
+        process_event
+      end
+    end
+
+    def parse_line(line)
+      case line
+      when /^:.*$/
+      when /^(\w+): ?(.*)$/
+        process_field($1, $2)
+      else
+        if chunked? && !@data_buffer.empty?
+          @data_buffer.rstrip!
+          process_field("data", line.rstrip)
+        end
+      end
+    end
+
+    def process_event
+      @last_event_id = @last_event_id_buffer
+
+      return if @data_buffer.empty?
+
+      @data_buffer.chomp!("\n") if @data_buffer.end_with?("\n")
+      event = MessageEvent.new(:message, @data_buffer, @last_event_id)
+      event.type = @event_type_buffer.to_sym unless @event_type_buffer.empty?
+
+      dispatch_event(event)
+    ensure
+      clear_buffers!
+    end
+
+    def process_field(field_name, field_value)
+      case field_name
+      when "event"
+        @event_type_buffer = field_value
+      when "data"
+        @data_buffer << field_value.concat("\n")
+      when "id"
+        @last_event_id_buffer = field_value
+      when "retry"
+        if /^(?<num>\d+)$/ =~ field_value
+          @reconnect_timeout = num.to_i
         end
       end
     end
 
     def handle_headers(headers)
       if headers['Content-Type'].include?("text/event-stream")
+        @chunked = !headers["Transfer-Encoding"].nil? && headers["Transfer-Encoding"].include?("chunked")
         @ready_state = OPEN
         @on[:open].call
       else
