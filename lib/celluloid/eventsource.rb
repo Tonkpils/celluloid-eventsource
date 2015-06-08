@@ -55,7 +55,7 @@ module Celluloid
     def listen
       establish_connection
 
-      process_stream
+      chunked? ? process_chunked_stream : process_stream
     rescue IOError
       # Closing the socket during read causes this exception and kills the actor
       # We really don't wan to do anything if the socket is closed.
@@ -124,8 +124,6 @@ module Celluloid
       }
     end
 
-
-
     def clear_buffers!
       @data_buffer = ""
       @event_type_buffer = ""
@@ -141,14 +139,16 @@ module Celluloid
       @chunked
     end
 
+    def process_chunked_stream
+      until closed? || @socket.eof?
+        handle_chunked_stream
+      end
+    end
+
     def process_stream
       until closed? || @socket.eof?
-        if chunked?
-          handle_chunked_stream
-        else
-          line = @socket.readline
-          line.strip.empty? ? process_event : parse_line(line)
-        end
+        line = @socket.readline
+        line.strip.empty? ? process_event : parse_line(line)
       end
     end
 
