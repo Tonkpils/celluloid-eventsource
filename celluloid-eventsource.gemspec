@@ -18,7 +18,7 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ["lib"]
 
-  spec.add_dependency 'celluloid-io', '>= 0.15.0', '<= 0.16.2'
+  spec.add_dependency 'celluloid-io', '>= 0.15.0', '<= 0.17.2'
   spec.add_dependency 'http_parser.rb', '~> 0.6.0'
 
   spec.add_development_dependency 'atomic', '~> 1.1.99'
